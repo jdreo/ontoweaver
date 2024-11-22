@@ -649,7 +649,18 @@ class YamlParser(Declare):
         transformers_list = self.get(k_transformer)
 
         n_transformer = 0
-        # First, parse property mappings.
+
+        # First, parse subject's type
+        logging.debug(f"Declare subject type...")
+        subject_dict = self.get(k_row)
+        subject_transformer_class = list(subject_dict.keys())[0]
+        subject_type = self.get(k_subject_type, subject_dict[subject_transformer_class])
+        subject_kwargs = self.get_not(k_subject_type + k_columns, subject_dict[subject_transformer_class])
+        subject_columns = self.get(k_columns, subject_dict[subject_transformer_class])
+        logging.debug(f"\tDeclare subject of type: '{subject_type}', subject transformer: '{subject_transformer_class}', "
+                      f"subject kwargs: '{subject_kwargs}', subject columns: '{subject_columns}'")
+
+        # Then, parse property mappings.
         logging.debug(f"Parse properties...")
         for transformer_types in transformers_list:
             n_transformer += 1
@@ -660,6 +671,9 @@ class YamlParser(Declare):
                 if any(field in field_dict for field in k_properties):
                     object_types = self.get(k_prop_to_object, pconfig=field_dict)
                     property_names = self.get(k_properties, pconfig=field_dict)
+                    if not object_types:
+                        logging.debug(f"No object defined for properties {property_names}, I will attach those properties to the subject `{subject_type}`")
+                        object_types = [subject_type]
                     column_names = self.get(k_columns, pconfig=field_dict)
                     prop_transformer = self.make_transformer_class(transformer_type, columns=column_names)
                     for object_type in object_types:
@@ -671,15 +685,7 @@ class YamlParser(Declare):
 
         metadata_list = self.get(k_metadata)
 
-        logging.debug(f"Declare subject transformer...")
-        subject_dict = self.get(k_row)
-        subject_transformer_class = list(subject_dict.keys())[0]
-        subject_type = self.get(k_subject_type, subject_dict[subject_transformer_class])
-        subject_kwargs = self.get_not(k_subject_type + k_columns, subject_dict[subject_transformer_class])
-        subject_columns = self.get(k_columns, subject_dict[subject_transformer_class])
-        logging.debug(f"\tDeclare subject of type: '{subject_type}', subject transformer: '{subject_transformer_class}', "
-                      f"subject kwargs: '{subject_kwargs}', subject columns: '{subject_columns}'")
-
+        logging.debug(f"Parse subject transformer...")
         source_t = self.make_node_class(subject_type, properties_of.get(subject_type, {}))
         subject_transformer = self.make_transformer_class(
             columns=subject_columns, transformer_type=subject_transformer_class,
