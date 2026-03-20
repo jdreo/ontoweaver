@@ -550,8 +550,11 @@ class Declare(errormanager.ErrorManager):
 
             # Compare the properties with the existing class fields
             if properties == cls_fields:
-                logger.info(
-                    f"\t\tEdge class `{name}` (prop: `{cls_fields}`) already exists with the same properties, I will not create another one.")
+                logger.debug(
+                    f"\t\tEdge class `{name}` already exists with the same properties,"
+                     " I will not create another one."
+                 )
+                logger.debug(f"\t\t\tProperties: `{cls_fields}`")
                 return cls
 
             logger.warning(f"\t\tEdge class `{name}` already exists, but properties do not match.")

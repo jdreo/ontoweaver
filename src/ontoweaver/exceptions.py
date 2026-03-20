@@ -5,7 +5,7 @@ Classes in this file all have a static ``code`` variable,
 which is used by the ``ontoweave`` command as an error return code.
 
 The exceptions taxonomy is::
-    
+
     OntoWeaverError
     ├─ AutoSchemaError
     ├─ ConfigError

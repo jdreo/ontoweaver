@@ -288,6 +288,11 @@ class LoadPandasFile(Loader):
                 logger.debug(f"Additional arguments passed to the `{pathlib.Path(filename).suffix}` load function: {kw}")
                 data.append( loadfunc(filename, **kw) )
 
+        if not data:
+            # self.error(f"I failed to load data from files: {', '.join()}", section = "data loading", exception = exceptions.InputDataError)
+            msg = f"I failed to load data from files: {', '.join(filenames)}"
+            raise exceptions.InputDataError(msg)
+
         out = pd.concat(data)
         return out
 

@@ -325,7 +325,15 @@ class cat_format(base.Transformer):
 
         def __call__(self, columns, row, i):
 
-            formatted_string = self.format_string.format_map(row)
+            try:
+                formatted_string = self.format_string.format_map(row)
+            except KeyError as err:
+                self.error(f"{err}, available keys: {row}",
+                    exception = exceptions.TransformerConfigError,
+                    index = i,
+                    section = "cat_format"
+                )
+
             yield formatted_string
 
     def __init__(self,
@@ -686,19 +694,30 @@ class translate(base.Transformer):
             self.translate = translate
             self.translate_from = translate_from
             self.translate_to = translate_to
+            self.warn_lines = {}
             super().__init__(raise_errors)
 
         def __call__(self, columns, row, i):
 
             for key in columns:
                 if key not in row:
-                    self.error(f"Column '{key}' not found in data", section="translate", 
+                    self.error(f"Column '{key}' not found in data", section="translate",
                                exception = exceptions.TransformerDataError)
                 cell = row[key]
                 if cell in self.translate:
                     yield self.translate[cell]
                 else:
-                    logger.warning(f"Row {i} does not contain something to be translated from `{self.translate_from}` to `{self.translate_to}` at column `{key}`.")
+                    msg = f"Some rows does not contain something to be translated"
+                    f" from `{self.translate_from}` to `{self.translate_to}`"
+                    f" at column `{key}`"
+                    self.warn_lines.get(msg, []).append(i)
+
+        def __del__(self):  # FIXME make warnings management a common interface
+            if len(self.warn_lines) > 0:
+                logging.warning(f"There was warnings in a translate transformer, on {len(self.warn_lines)} lines:")
+                for w in self.warn_lines:
+                    logging.warning(f"{w}: {', '.join(self.warn_lines[w])}")
+
 
     def __init__(self,
             properties_of,
@@ -784,7 +803,11 @@ class translate(base.Transformer):
                 for with_loader in [lpf, lpd, lrf, lrg]:
                     if with_loader.allows([self.translations_file]):
                         logger.debug(f"\t\t\tUsing loader: {type(with_loader).__name__}")
-                        self.df = with_loader.load([self.translations_file], **more_args)
+                        try:
+                            self.df = with_loader.load([self.translations_file], **more_args)
+                        except exceptions.InputDataError as err:
+                            logging.error(f"I cannot load the translations_file: `{self.translations_file}`")
+                            raise err
                         break
 
                 if self.df.empty:
@@ -833,7 +856,7 @@ class translate(base.Transformer):
             raise_errors=raise_errors,
             **kwargs
         )
-        
+
     def __call__(self, row, i):
         """
         Process a row and yield cell values as node IDs.
